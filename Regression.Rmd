@@ -1,0 +1,181 @@
+---
+title: "Likelihood"
+author: "Bart DiFiore"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Simple linear regresssion
+
+Lets first generate some simple data to describe a linear relationship between x (predictor variable) and y (response variable). We'll assume that the intercept of the line is zero. 
+
+```{r}
+x <- 1:100 # "predictor variable"
+beta = 2 # parameter beta
+mu = x*beta + 0 
+sd = 10
+
+y <- rnorm(length(x), mean = mu, sd = sd)
+
+plot(y~x)
+
+
+```
+
+
+Our goal is to determine the slope of the relationship between x and y. (We already know the answer...) We can build a regression model first using a generalized notation. This notation may differ from what you may have previously seen in an intro stats course. But what I find so compelling about this notation is that it is generalizable. Indeed how you may have seen particular statistical tests described mathematically in the past are all special cases of this generalizable notation. And all regression based models (linear, nonlinear, frequentist, Bayesian, OLS regression, ML regression, generalized linear regression) can be expressed in this notation.
+
+Lets start with the simple notion of the model for a line $y = \beta_0 + \beta_1x$. Here we let $\beta_0$ represent the intercept of the line (here we assume this to be zero) and $\beta_1$ to represent the slope of this line. Its important to remember that this mathematical structure is entirely arbitrary. We could have just as easily used a more complex nonlinear form for the relationship between our response $y$ and our single predictor $x$ with any parameters of our choosing. Whats critical to remember is that how we define the relationship between $y$ and $x$ is entirely our choice. The tool -- our model -- doesn't care and doesn't know anything about the data or the relationship between $y$ and $x$. Here we are making the assumption that the relationship is linear, and can be defined by two parameters $\beta_0$ and $\beta_1$. Thus the goal of the model is to generate the best estimate of the parameters given the data.
+
+With this in mind, we can now define a likelihood function for the data. The term likelihood is widespread in statistics, and we'll avoid a formal definition for the time being. However, the likelihood can be thought of as the statistical distribution relating our assumed model to the data.
+
+$$
+y_i \sim Normal(\mu_i, \sigma) \\
+$$
+
+So what does this mean? The first line of the above equation is the likelihood function. $y_i$ is indexed by i, which just means of each value in the vector of data $y$. You can think of this as each row in the the data set with the response variable. $y_i$ is related to the data (e.g. $\sim$) via an ASSUMED normal distribution. Indeed, we could use an infinite number of different distributions to describe the relationship between the response and the predictor variable. Here, I chose a normal because a) most of us are familar with the normal distribution and b) its typically a safe bet as a starting point for a model. Other commonly used distributions that you may encounter are binomial, poisson, gamma, etc. Each distribution has its own properties. 
+
+You can think of the distribution as simply a mathematical function that itself is composed of parameters. Here, we use "Normal" to represent the mathematical formula for the probability density function of a normal distribution
+
+$$
+f(x) = \frac{1}{\sigma\sqrt{2\pi}} 
+  \exp\left( -\frac{1}{2}\left(\frac{x-\mu}{\sigma}\right)^{\!2}\,\right)\\
+$$
+
+The above equation looks really complicated. But that's ok, you rarely if ever have to deal with the nitty-gritty equations of distributions in statistical software like R. The important part to remember is that when you see a distribution named when writing out the model all you are seeing is a place holder for a mathematical formula. For a normal distribution that formula expresses the response $x$ as a function of the mean $\mu$ and a standard deviation $\sigma$.
+
+Ok, so we now have a likelihood function relating our response $y$ to a normal distribution with mean $\mu$ and standard deviation $\sigma$. Now we need to relate the mean of the normal distribution to our predictor variable $x$. We know that we are assuming $y \sim x$ according to a linear model. So lets build out that in the model notation.
+
+$$
+y_i \sim Normal(\mu_i, \sigma) \\
+\mu_i = \beta_0 + \beta_1x_i 
+$$
+
+In the second line of our model formulation, we can now see that the mean of the normal distribution for each unique combination of $y$ and $x$ is dependent on our linear model which is defined by two parameters $\beta_0$ and $\beta_1$. These parameters relate $y \sim x$. If it makes you more comfortable you could also think of this equation as $y_i \sim Normal(\beta_0 + \beta_1x_i, \sigma)$. However, as your models become more complex, the notation is much easier to follow when you write out the deterministic relationship between $\mu_i$ and the model. 
+
+Its taken me a while to wrap my head around what exactly this means. So lets try to see this visually. We know the equation for the line (because we made the data), so I'll just plot the data and the mean trend line used to generate the data. So for each value of our predictor variable $x$ our model is predicting some mean ($mu_i$) value for our response ($y$) with some standard deviation ($\sigma$). Lets use $x_i = 40$ as an example. 
+
+```{r}
+
+temp <- data.frame(y = dnorm(x = x, mean = 40, sd = 10)*1000+80, x = seq(35,45, length.out = length(x)))
+
+plot(y ~ x)
+abline(a = 0, b = 2)
+points(x = 40, y = 2*40, cex = 3, pch = 19)
+lines(x = temp$x, y = temp$y, col = "red")
+
+```
+
+So the way that I like to imagine this is that the model is generating a probability distribution for each value of $x_i$ in the data. Specifically, for each $x_i$ the model predicts a single $\mu_i$ with standard deviation $\sigma$. So if we want to visualize this it might look something like a ridge running up the regression relationship in 3-D space. Don't worry about the following code, its only a hacky way to visualize the ridge.
+
+```{r}
+
+plot(y ~ x)
+abline(a = 0, b = 2)
+for(i in 1:length(x)){
+  lines(x = seq(x[i]-10, x[i]+10, length.out = length(x)), y = dnorm(x = x, mean = x[i], sd = 10)*500+2*x[i], col = "red")
+}
+
+```
+
+I just want to note here that all this plot is doing is trying to visualize the mathematical notation of our regression relationship: 
+
+$$
+y_i \sim Normal(\mu_i, \sigma) \\
+\mu_i = \beta_0 + \beta_1x_i 
+$$
+
+We have not fit the model to the data! And fitting the model is where we are faced with making decisions about how we want to fit the model to the data. Here is also where different versions of statistics diverge. Specifically, Bayesian statistics and more traditional statistics diverge in the tools that are used to fit the model to the data (or the data to the model depending on your perspective). Without getting into the weeds I want to stop here and practice writing out some models in mathematical notation. And specifically, I want us to focus on the ASSUMPTIONS we are making when we design these models.
+
+Lets introduce some real data. Real data is messy and this data is no exception. This data set was collected from the SBC LTER and represents the biomass of two taxomomic groups on the benthos, giant kelp and understory algae.  There has been quite a bit of work done to understand how kelp mediates the relative abundance of understory algae. One hypothesis is that when kelp abundance is high, it shades out the sea floor, reducing the abundance of understory algae. But the data is really really really messy! Here is a plot. 
+
+```{r}
+df <- read.csv("sbc_lter-data.csv") # read in the data. Note that to make this a little easier I removed all zero observations.
+
+# plot UA ~ kelp
+
+plot(Understory_algae ~ Kelp, df)
+
+
+```
+
+So I want each of you to try to design a model and write that model down in mathematical notation that tests the hypothesis that understory algae decreases as kelp increases. We're all at different stages in our understand of stats. So for those who are more familiar you can feel free to think about different distributions, etc. But lets assume that kelp is the predictor variable and is causally impacting understory algae abundance. After you write down the notation, jot down a list of the assumptions implicit to your model. Remember that there is no real right answer to this, there is only a model that you think describes your understanding of kelp-UA interactions.
+
+$$
+understory algae_i \sim Normal(\mu_i, \sigma) \\
+\mu_i = \beta_0 + \beta_1kelp_i 
+$$
+
+$$
+understory algae_i \sim Normal(\mu_i, \sigma) \\
+\mu_i = \beta_0kelp_i^{\beta_1} 
+$$
+
+$$
+understory algae_i \sim gamma(\mu_i, \sigma) \\
+\log(mu_i) = \beta_0 + \beta_1kelp_i 
+$$
+
+
+Ok, so the SBC LTER data set is actually a bit more complicated and the data has structure. What I mean by this is that not all observations of understory algae at a given value of kelp are independent. There are two complicating factors: first this data represents a time series. We're not going to focus on this aspect of the data today. Second, data was collected at transects that are aggregated at sites. So its safe to assume that the relationship between kelp and understory algae might be more similar between transects at a site then between sites. How could we write down the notation for a model that accounts for this structure? Lets give it a try? (10 minutes to brainstorm). 
+
+$$
+understory algae_i \sim Normal(\mu_i, \sigma) \\
+\mu_i = \beta_{0,site[k]} + \beta_1kelp_i \\
+\beta_{0, site} \sim Normal(\beta_0,\sigma_{site})
+$$
+
+We now have a heirarchical model that accounts for the structure in the data. Such a model goes by many different names, including a multi-level, heirarchical, mixed-effects, or random-effects model. Typically different ways of fitting these models use different names, for example lme4, a package in R that fits these models using maximum likelihood (just a tool), refers to them as "mixed-effects" models. Conversely, Bayesian analyses typically refer to a model like this as a "hierarchical" model. 
+
+The process of how to fit models like these to data is beyond what I wanted to go into today. But I wanted to show you visually how a model like this fits the kelp-UA data. 
+
+```{r}
+library(ggplot2)
+lmer1 <- lmerTest::lmer(Understory_algae ~ Kelp + (1|site), df)
+
+summary(lmer1)
+
+pred <- ggeffects::ggpredict(lmer1, ~Kelp+(1|site), type = "re")
+
+pred <- as.data.frame(pred)
+
+pred_pop <- ggeffects::ggpredict(lmer1, ~Kelp, type = "fe")
+
+pred_pop <- as.data.frame(pred_pop)
+
+ggplot(pred, aes(x = x, y = predicted))+
+  geom_point(data = df, aes(x = Understory_algae, y = Kelp))+
+  geom_line(aes(color = group))+
+  geom_line(data = pred_pop, aes(x = x, y = predicted), color = "black", lwd = 3)+
+  coord_cartesian(xlim = c(0,800))
+
+
+```
+
+
+
+
+$$
+understory algae_i \sim Normal(\mu_i, \sigma) \\
+\mu_i = kelp_iexp(\beta_0 + \beta_1kelp_i) 
+
+
+$$
+
+
+
+
+
+
+
+
+
+
+
+
